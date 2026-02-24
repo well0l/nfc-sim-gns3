@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, render_template_string
 import requests, os
 
 app = Flask(__name__)
-BACKEND = os.environ.get("BACKEND_URL", "http://localhost:8080")
+BACKEND = os.environ.get("BACKEND_URL", "http://10.10.100.10:8080")
 DEVICE_ID = os.environ.get("DEVICE_ID", "vending_unknown")
 
 HTML = """
@@ -69,7 +69,7 @@ HTML = """
                 body: JSON.stringify({uid, amount: price})
             });
             const d = await r.json();
-            
+
             if (d.result === "ok") {
                 show(`✅ Acquisto completato! Carta: ${uid} — Importo: €${price}`, true);
             } else if (d.result === "denied_notfound") {

@@ -32,7 +32,7 @@
 <body>
     <div class="container">
         <h1>🎛️ Pannello di Controllo - Cassa</h1>
-        
+
         <div class="stats">
             <div class="stat-card">
                 <h3>Carte Totali</h3>
@@ -72,11 +72,10 @@
     </div>
 
     <script>
-        const BACKEND_URL = `http://${window.location.hostname}:8080`;
+        const BACKEND_URL = '{{ backend_url }}';
 
         async function loadData() {
             try {
-                // Carica statistiche
                 const statsRes = await fetch(`${BACKEND_URL}/api/stats`);
                 const stats = await statsRes.json();
                 document.getElementById('total-cards').textContent = stats.total_cards;
@@ -84,10 +83,9 @@
                 document.getElementById('blocked-cards').textContent = stats.blocked_cards;
                 document.getElementById('total-balance').textContent = `€ ${stats.total_balance_euro.toFixed(2)}`;
 
-                // Carica lista carte
                 const cardsRes = await fetch(`${BACKEND_URL}/api/cards/all`);
                 const cards = await cardsRes.json();
-                
+
                 const tbody = document.getElementById('cards-body');
                 if (cards.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Nessuna carta nel sistema</td></tr>';
@@ -98,7 +96,7 @@
                             <td>€ ${card.balance_euro.toFixed(2)}</td>
                             <td class="status-${card.status}">${card.status === 'active' ? '✅ Attiva' : '🚫 Bloccata'}</td>
                             <td>
-                                ${card.status === 'active' 
+                                ${card.status === 'active'
                                     ? `<button class="btn-block" onclick="toggleStatus('${card.uid}', 'blocked')">Blocca</button>`
                                     : `<button class="btn-activate" onclick="toggleStatus('${card.uid}', 'active')">Attiva</button>`
                                 }
@@ -121,7 +119,7 @@
                 });
                 const result = await res.json();
                 if (result.result === 'ok') {
-                    loadData(); // Ricarica i dati
+                    loadData();
                 } else {
                     alert('Errore: ' + (result.error || 'Operazione fallita'));
                 }
@@ -131,9 +129,7 @@
             }
         }
 
-        // Carica dati all'avvio
         loadData();
-        // Ricarica automaticamente ogni 5 secondi
         setInterval(loadData, 5000);
     </script>
 </body>

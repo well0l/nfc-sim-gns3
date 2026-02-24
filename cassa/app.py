@@ -8,7 +8,7 @@ DEVICE_ID = os.environ.get("DEVICE_ID", "cassa")
 
 @app.route("/")
 def admin_panel():
-    return render_template("admin.html")
+    return render_template("admin.html", backend_url=BACKEND_URL, device_id=DEVICE_ID)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
