@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pannello Admin - Cassa NFC</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #333; margin-bottom: 20px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .stat-card h3 { color: #666; font-size: 14px; margin-bottom: 10px; }
+        .stat-card .value { font-size: 28px; font-weight: bold; color: #2196F3; }
+        .cards-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background: #2196F3; color: white; padding: 12px; text-align: left; }
+        td { padding: 12px; border-bottom: 1px solid #ddd; }
+        tr:hover { background: #f9f9f9; }
+        .status-active { color: #4CAF50; font-weight: bold; }
+        .status-blocked { color: #f44336; font-weight: bold; }
+        button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .btn-block { background: #f44336; color: white; }
+        .btn-activate { background: #4CAF50; color: white; }
+        .btn-block:hover { background: #d32f2f; }
+        .btn-activate:hover { background: #45a049; }
+        .refresh-btn { background: #2196F3; color: white; margin-bottom: 15px; }
+        .refresh-btn:hover { background: #1976D2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎛️ Pannello di Controllo - Cassa</h1>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Carte Totali</h3>
+                <div class="value" id="total-cards">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Carte Attive</h3>
+                <div class="value" id="active-cards" style="color: #4CAF50;">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Carte Bloccate</h3>
+                <div class="value" id="blocked-cards" style="color: #f44336;">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Totale Credito</h3>
+                <div class="value" id="total-balance">€ -</div>
+            </div>
+        </div>
+
+        <div class="cards-section">
+            <button class="refresh-btn" onclick="loadData()">🔄 Aggiorna</button>
+            <h2>Carte nel Sistema</h2>
+            <table id="cards-table">
+                <thead>
+                    <tr>
+                        <th>UID Carta</th>
+                        <th>Saldo</th>
+                        <th>Stato</th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="cards-body">
+                    <tr><td colspan="4" style="text-align: center;">Caricamento...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'http://10.10.100.10:8080';
+
+        async function loadData() {
+            try {
+                // Carica statistiche
+                const statsRes = await fetch(`${BACKEND_URL}/api/stats`);
+                const stats = await statsRes.json();
+                document.getElementById('total-cards').textContent = stats.total_cards;
+                document.getElementById('active-cards').textContent = stats.active_cards;
+                document.getElementById('blocked-cards').textContent = stats.blocked_cards;
+                document.getElementById('total-balance').textContent = `€ ${stats.total_balance_euro.toFixed(2)}`;
+
+                // Carica lista carte
+                const cardsRes = await fetch(`${BACKEND_URL}/api/cards/all`);
+                const cards = await cardsRes.json();
+                
+                const tbody = document.getElementById('cards-body');
+                if (cards.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Nessuna carta nel sistema</td></tr>';
+                } else {
+                    tbody.innerHTML = cards.map(card => `
+                        <tr>
+                            <td><strong>${card.uid}</strong></td>
+                            <td>€ ${card.balance_euro.toFixed(2)}</td>
+                            <td class="status-${card.status}">${card.status === 'active' ? '✅ Attiva' : '🚫 Bloccata'}</td>
+                            <td>
+                                ${card.status === 'active' 
+                                    ? `<button class="btn-block" onclick="toggleStatus('${card.uid}', 'blocked')">Blocca</button>`
+                                    : `<button class="btn-activate" onclick="toggleStatus('${card.uid}', 'active')">Attiva</button>`
+                                }
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Errore:', error);
+                alert('Errore di connessione al backend');
+            }
+        }
+
+        async function toggleStatus(uid, newStatus) {
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/cards/${uid}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                const result = await res.json();
+                if (result.result === 'ok') {
+                    loadData(); // Ricarica i dati
+                } else {
+                    alert('Errore: ' + (result.error || 'Operazione fallita'));
+                }
+            } catch (error) {
+                console.error('Errore:', error);
+                alert('Errore di connessione');
+            }
+        }
+
+        // Carica dati all'avvio
+        loadData();
+        // Ricarica automaticamente ogni 5 secondi
+        setInterval(loadData, 5000);
+    </script>
+</body>
+</html>
