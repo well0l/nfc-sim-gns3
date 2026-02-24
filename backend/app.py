@@ -3,13 +3,10 @@ import sqlite3
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-
 app = Flask(__name__)
-CORS(app)  # Abilita CORS per tutte le route
+CORS(app)
 
-# Path relativo alla directory di lavoro, sovrascrivibile da env
 DB = os.environ.get("DB_PATH", "./data/nfc.db")
-
 
 def get_db():
     conn = sqlite3.connect(DB)
@@ -39,25 +36,41 @@ def init_db():
     conn.close()
 
 def to_cents(value):
-    """Converte 10.50 → 1050, accetta sia float che stringa"""
     return int(round(float(str(value).replace(",", ".")), 2) * 100)
-
 
 @app.route("/api/cards", methods=["POST"])
 def create_card():
     data = request.json
     uid = data.get("uid")
+    balance = 0
+    if data.get("balance"):
+        try:
+            balance = to_cents(data.get("balance"))
+        except:
+            pass
     if not uid:
         return jsonify({"error": "uid required"}), 400
     conn = get_db()
     try:
-        conn.execute("INSERT INTO cards(uid, balance, status) VALUES(?,?,?)", (uid, 0, "active"))
+        conn.execute("INSERT INTO cards(uid, balance, status) VALUES(?,?,?)", (uid, balance, "active"))
         conn.commit()
         result = {"result": "ok", "uid": uid}
     except sqlite3.IntegrityError:
         result = {"error": "card already exists"}
     conn.close()
     return jsonify(result)
+
+@app.route("/api/cards/<uid>", methods=["DELETE"])
+def delete_card(uid):
+    conn = get_db()
+    card = conn.execute("SELECT * FROM cards WHERE uid=?", (uid,)).fetchone()
+    if not card:
+        conn.close()
+        return jsonify({"error": "card not found"}), 404
+    conn.execute("DELETE FROM cards WHERE uid=?", (uid,))
+    conn.commit()
+    conn.close()
+    return jsonify({"result": "ok", "uid": uid})
 
 @app.route("/api/purchase", methods=["POST"])
 def purchase():
@@ -68,7 +81,6 @@ def purchase():
         amount = to_cents(data.get("amount", 0))
     except (ValueError, TypeError):
         return jsonify({"result": "error_invalid_amount"}), 400
-
     conn = get_db()
     card = conn.execute("SELECT * FROM cards WHERE uid=?", (uid,)).fetchone()
     if not card:
@@ -95,7 +107,6 @@ def topup():
         amount = to_cents(data.get("amount", 0))
     except (ValueError, TypeError):
         return jsonify({"result": "error_invalid_amount"}), 400
-
     conn = get_db()
     card = conn.execute("SELECT * FROM cards WHERE uid=?", (uid,)).fetchone()
     if not card:
@@ -132,7 +143,6 @@ def events():
 
 @app.route("/api/cards/all")
 def list_all_cards():
-    """Lista tutte le carte con saldo e status"""
     conn = get_db()
     cards = conn.execute("SELECT * FROM cards ORDER BY uid").fetchall()
     conn.close()
@@ -145,18 +155,15 @@ def list_all_cards():
 
 @app.route("/api/cards/<uid>/status", methods=["PUT"])
 def update_card_status(uid):
-    """Attiva o disattiva una carta"""
     data = request.json
     new_status = data.get("status")
     if new_status not in ["active", "blocked"]:
         return jsonify({"error": "status must be 'active' or 'blocked'"}), 400
-    
     conn = get_db()
     card = conn.execute("SELECT * FROM cards WHERE uid=?", (uid,)).fetchone()
     if not card:
         conn.close()
         return jsonify({"error": "card not found"}), 404
-    
     conn.execute("UPDATE cards SET status=? WHERE uid=?", (new_status, uid))
     conn.commit()
     conn.close()
@@ -164,20 +171,16 @@ def update_card_status(uid):
 
 @app.route("/api/stats")
 def get_stats():
-    """Statistiche sistema"""
     conn = get_db()
     stats = {}
     stats["total_cards"] = conn.execute("SELECT COUNT(*) as cnt FROM cards").fetchone()["cnt"]
     stats["active_cards"] = conn.execute("SELECT COUNT(*) as cnt FROM cards WHERE status='active'").fetchone()["cnt"]
     stats["blocked_cards"] = conn.execute("SELECT COUNT(*) as cnt FROM cards WHERE status='blocked'").fetchone()["cnt"]
-    
     total_balance = conn.execute("SELECT SUM(balance) as total FROM cards").fetchone()["total"]
     stats["total_balance_cents"] = total_balance if total_balance else 0
     stats["total_balance_euro"] = round((total_balance if total_balance else 0) / 100, 2)
-    
     conn.close()
     return jsonify(stats)
-
 
 if __name__ == "__main__":
     init_db()

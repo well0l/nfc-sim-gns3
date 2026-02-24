@@ -6,33 +6,55 @@
     <title>Pannello Admin - Cassa NFC</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f5f5; padding: 20px; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; padding: 20px; }
         .container { max-width: 1200px; margin: 0 auto; }
         h1 { color: #333; margin-bottom: 20px; }
-        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
-        .stat-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .stat-card h3 { color: #666; font-size: 14px; margin-bottom: 10px; }
-        .stat-card .value { font-size: 28px; font-weight: bold; color: #2196F3; }
-        .cards-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { background: #2196F3; color: white; padding: 12px; text-align: left; }
-        td { padding: 12px; border-bottom: 1px solid #ddd; }
-        tr:hover { background: #f9f9f9; }
+        h2 { color: #444; margin-bottom: 15px; font-size: 18px; }
+        .section { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .stat-card h3 { color: #888; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; }
+        .stat-card .value { font-size: 32px; font-weight: bold; color: #2196F3; }
+        .form-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        input[type=text], input[type=number] { padding: 10px 14px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; outline: none; transition: border 0.2s; }
+        input[type=text]:focus, input[type=number]:focus { border-color: #2196F3; }
+        button { padding: 10px 18px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s; }
+        .btn-primary { background: #2196F3; color: white; }
+        .btn-primary:hover { background: #1976D2; }
+        .btn-success { background: #4CAF50; color: white; }
+        .btn-success:hover { background: #388E3C; }
+        .btn-warning { background: #FF9800; color: white; }
+        .btn-warning:hover { background: #F57C00; }
+        .btn-danger { background: #f44336; color: white; }
+        .btn-danger:hover { background: #d32f2f; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #2196F3; color: white; padding: 12px 15px; text-align: left; font-size: 13px; }
+        td { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+        tr:hover td { background: #fafafa; }
         .status-active { color: #4CAF50; font-weight: bold; }
         .status-blocked { color: #f44336; font-weight: bold; }
-        button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
-        .btn-block { background: #f44336; color: white; }
-        .btn-activate { background: #4CAF50; color: white; }
-        .btn-block:hover { background: #d32f2f; }
-        .btn-activate:hover { background: #45a049; }
-        .refresh-btn { background: #2196F3; color: white; margin-bottom: 15px; }
-        .refresh-btn:hover { background: #1976D2; }
+        .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+        .msg { padding: 10px 14px; border-radius: 6px; margin-top: 10px; font-weight: 600; font-size: 14px; }
+        .msg-ok { background: #E8F5E9; color: #2E7D32; }
+        .msg-err { background: #FFEBEE; color: #C62828; }
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
+        .modal-overlay.open { display: flex; }
+        .modal { background: white; padding: 30px; border-radius: 12px; min-width: 320px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+        .modal h3 { margin-bottom: 15px; color: #333; }
+        .modal input { width: 100%; margin-bottom: 15px; }
+        .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+        .events-table td { font-size: 13px; }
+        .result-ok { color: #4CAF50; font-weight: bold; }
+        .result-denied { color: #f44336; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎛️ Pannello di Controllo - Cassa</h1>
+        <h1>🎛️ Pannello di Controllo - Cassa NFC</h1>
 
+        <!-- STATISTICHE -->
         <div class="stats">
             <div class="stat-card">
                 <h3>Carte Totali</h3>
@@ -40,22 +62,36 @@
             </div>
             <div class="stat-card">
                 <h3>Carte Attive</h3>
-                <div class="value" id="active-cards" style="color: #4CAF50;">-</div>
+                <div class="value" id="active-cards" style="color:#4CAF50">-</div>
             </div>
             <div class="stat-card">
                 <h3>Carte Bloccate</h3>
-                <div class="value" id="blocked-cards" style="color: #f44336;">-</div>
+                <div class="value" id="blocked-cards" style="color:#f44336">-</div>
             </div>
             <div class="stat-card">
                 <h3>Totale Credito</h3>
-                <div class="value" id="total-balance">€ -</div>
+                <div class="value" id="total-balance" style="color:#FF9800">€ -</div>
             </div>
         </div>
 
-        <div class="cards-section">
-            <button class="refresh-btn" onclick="loadData()">🔄 Aggiorna</button>
-            <h2>Carte nel Sistema</h2>
-            <table id="cards-table">
+        <!-- CREA CARTA -->
+        <div class="section">
+            <h2>➕ Crea Nuova Carta</h2>
+            <div class="form-row">
+                <input type="text" id="new-uid" placeholder="UID Carta (es. CARD001)" style="width:220px">
+                <input type="number" id="new-balance" placeholder="Saldo iniziale (€)" min="0" step="0.01" style="width:180px">
+                <button class="btn-primary" onclick="createCard()">Crea Carta</button>
+            </div>
+            <div id="create-msg"></div>
+        </div>
+
+        <!-- LISTA CARTE -->
+        <div class="section">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
+                <h2>💳 Carte nel Sistema</h2>
+                <button class="btn-primary btn-sm" onclick="loadData()">🔄 Aggiorna</button>
+            </div>
+            <table>
                 <thead>
                     <tr>
                         <th>UID Carta</th>
@@ -65,31 +101,69 @@
                     </tr>
                 </thead>
                 <tbody id="cards-body">
-                    <tr><td colspan="4" style="text-align: center;">Caricamento...</td></tr>
+                    <tr><td colspan="4" style="text-align:center;color:#aaa;padding:30px">Caricamento...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ULTIMI MOVIMENTI -->
+        <div class="section">
+            <h2>📋 Ultimi Movimenti</h2>
+            <table class="events-table">
+                <thead>
+                    <tr>
+                        <th>Data/Ora</th>
+                        <th>Carta</th>
+                        <th>Tipo</th>
+                        <th>Importo</th>
+                        <th>Dispositivo</th>
+                        <th>Esito</th>
+                    </tr>
+                </thead>
+                <tbody id="events-body">
+                    <tr><td colspan="6" style="text-align:center;color:#aaa;padding:30px">Caricamento...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 
+    <!-- MODAL RICARICA -->
+    <div class="modal-overlay" id="topup-modal">
+        <div class="modal">
+            <h3>💰 Ricarica Carta</h3>
+            <p style="color:#666;margin-bottom:15px">Carta: <strong id="topup-uid-label"></strong></p>
+            <input type="number" id="topup-amount" placeholder="Importo (€)" min="0.01" step="0.01">
+            <div class="modal-btns">
+                <button class="btn-primary" onclick="confirmTopup()">Ricarica</button>
+                <button onclick="closeTopupModal()" style="background:#eee;color:#333">Annulla</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // URL relativo: il browser chiama la Cassa, Flask fa da proxy verso il backend
-        const BACKEND_URL = '';
+        let topupTargetUid = null;
 
         async function loadData() {
             try {
-                const statsRes = await fetch(`${BACKEND_URL}/api/stats`);
+                const [statsRes, cardsRes, eventsRes] = await Promise.all([
+                    fetch('/api/stats'),
+                    fetch('/api/cards/all'),
+                    fetch('/api/events')
+                ]);
                 const stats = await statsRes.json();
+                const cards = await cardsRes.json();
+                const events = await eventsRes.json();
+
+                // Stats
                 document.getElementById('total-cards').textContent = stats.total_cards;
                 document.getElementById('active-cards').textContent = stats.active_cards;
                 document.getElementById('blocked-cards').textContent = stats.blocked_cards;
                 document.getElementById('total-balance').textContent = `€ ${stats.total_balance_euro.toFixed(2)}`;
 
-                const cardsRes = await fetch(`${BACKEND_URL}/api/cards/all`);
-                const cards = await cardsRes.json();
-
+                // Cards
                 const tbody = document.getElementById('cards-body');
                 if (cards.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Nessuna carta nel sistema</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:30px">Nessuna carta nel sistema</td></tr>';
                 } else {
                     tbody.innerHTML = cards.map(card => `
                         <tr>
@@ -97,38 +171,115 @@
                             <td>€ ${card.balance_euro.toFixed(2)}</td>
                             <td class="status-${card.status}">${card.status === 'active' ? '✅ Attiva' : '🚫 Bloccata'}</td>
                             <td>
-                                ${card.status === 'active'
-                                    ? `<button class="btn-block" onclick="toggleStatus('${card.uid}', 'blocked')">Blocca</button>`
-                                    : `<button class="btn-activate" onclick="toggleStatus('${card.uid}', 'active')">Attiva</button>`
-                                }
+                                <div class="actions">
+                                    <button class="btn-warning btn-sm" onclick="openTopupModal('${card.uid}')">Ricarica</button>
+                                    ${card.status === 'active'
+                                        ? `<button class="btn-danger btn-sm" onclick="toggleStatus('${card.uid}', 'blocked')">Blocca</button>`
+                                        : `<button class="btn-success btn-sm" onclick="toggleStatus('${card.uid}', 'active')">Attiva</button>`
+                                    }
+                                    <button class="btn-sm" style="background:#9E9E9E;color:white" onclick="deleteCard('${card.uid}')">Elimina</button>
+                                </div>
                             </td>
                         </tr>
                     `).join('');
                 }
-            } catch (error) {
-                console.error('Errore:', error);
+
+                // Events
+                const evBody = document.getElementById('events-body');
+                if (events.length === 0) {
+                    evBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:30px">Nessun movimento</td></tr>';
+                } else {
+                    evBody.innerHTML = events.map(e => {
+                        const isOk = e.result === 'ok';
+                        const typeIcon = e.type === 'topup' ? '💰' : '🛒';
+                        const amount = e.amount ? `€ ${(e.amount/100).toFixed(2)}` : '-';
+                        return `
+                        <tr>
+                            <td>${e.ts}</td>
+                            <td>${e.card_uid}</td>
+                            <td>${typeIcon} ${e.type}</td>
+                            <td>${amount}</td>
+                            <td>${e.device_id}</td>
+                            <td class="${isOk ? 'result-ok' : 'result-denied'}">${e.result}</td>
+                        </tr>`;
+                    }).join('');
+                }
+            } catch (err) {
+                console.error(err);
                 alert('Errore di connessione al backend');
             }
         }
 
-        async function toggleStatus(uid, newStatus) {
-            try {
-                const res = await fetch(`${BACKEND_URL}/api/cards/${uid}/status`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: newStatus })
-                });
-                const result = await res.json();
-                if (result.result === 'ok') {
-                    loadData();
-                } else {
-                    alert('Errore: ' + (result.error || 'Operazione fallita'));
-                }
-            } catch (error) {
-                console.error('Errore:', error);
-                alert('Errore di connessione');
+        async function createCard() {
+            const uid = document.getElementById('new-uid').value.trim();
+            const balance = document.getElementById('new-balance').value || 0;
+            const msgEl = document.getElementById('create-msg');
+            if (!uid) { msgEl.innerHTML = '<div class="msg msg-err">❌ Inserisci un UID</div>'; return; }
+            const r = await fetch('/api/cards', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({uid, balance})
+            });
+            const d = await r.json();
+            if (d.result === 'ok') {
+                msgEl.innerHTML = `<div class="msg msg-ok">✅ Carta ${uid} creata!</div>`;
+                document.getElementById('new-uid').value = '';
+                document.getElementById('new-balance').value = '';
+                loadData();
+            } else {
+                msgEl.innerHTML = `<div class="msg msg-err">❌ ${d.error || 'Errore'}</div>`;
             }
         }
+
+        async function toggleStatus(uid, newStatus) {
+            const r = await fetch(`/api/cards/${uid}/status`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({status: newStatus})
+            });
+            const d = await r.json();
+            if (d.result === 'ok') loadData();
+            else alert('Errore: ' + (d.error || 'Operazione fallita'));
+        }
+
+        async function deleteCard(uid) {
+            if (!confirm(`Eliminare la carta ${uid}? \nL'operazione non è reversibile.`)) return;
+            const r = await fetch(`/api/cards/${uid}`, { method: 'DELETE' });
+            const d = await r.json();
+            if (d.result === 'ok') loadData();
+            else alert('Errore: ' + (d.error || 'Eliminazione fallita'));
+        }
+
+        function openTopupModal(uid) {
+            topupTargetUid = uid;
+            document.getElementById('topup-uid-label').textContent = uid;
+            document.getElementById('topup-amount').value = '';
+            document.getElementById('topup-modal').classList.add('open');
+        }
+
+        function closeTopupModal() {
+            document.getElementById('topup-modal').classList.remove('open');
+            topupTargetUid = null;
+        }
+
+        async function confirmTopup() {
+            const amount = document.getElementById('topup-amount').value;
+            if (!amount || parseFloat(amount) <= 0) { alert('Inserisci un importo valido'); return; }
+            const r = await fetch('/api/topup', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({card_uid: topupTargetUid, amount, device_id: 'cassa'})
+            });
+            const d = await r.json();
+            closeTopupModal();
+            if (d.result === 'ok') loadData();
+            else alert('Errore ricarica: ' + d.result);
+        }
+
+        // Chiudi modal cliccando fuori
+        document.getElementById('topup-modal').addEventListener('click', function(e) {
+            if (e.target === this) closeTopupModal();
+        });
 
         loadData();
         setInterval(loadData, 5000);

@@ -11,7 +11,6 @@ DEVICE_ID = os.environ.get("DEVICE_ID", "cassa")
 def admin_panel():
     return render_template("admin.html", device_id=DEVICE_ID)
 
-# Proxy routes → backend
 @app.route("/api/stats")
 def proxy_stats():
     r = requests.get(f"{BACKEND}/api/stats")
@@ -30,6 +29,11 @@ def proxy_create_card():
 @app.route("/api/cards/<uid>/status", methods=["PUT"])
 def proxy_card_status(uid):
     r = requests.put(f"{BACKEND}/api/cards/{uid}/status", json=request.json)
+    return jsonify(r.json())
+
+@app.route("/api/cards/<uid>", methods=["DELETE"])
+def proxy_delete_card(uid):
+    r = requests.delete(f"{BACKEND}/api/cards/{uid}")
     return jsonify(r.json())
 
 @app.route("/api/topup", methods=["POST"])
