@@ -72,7 +72,8 @@
     </div>
 
     <script>
-        const BACKEND_URL = '{{ backend_url }}';
+        // URL relativo: il browser chiama la Cassa, Flask fa da proxy verso il backend
+        const BACKEND_URL = '';
 
         async function loadData() {
             try {
