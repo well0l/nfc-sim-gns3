@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_PATH=./data/nfc.db
+    volumes:
+      - backend_data:/app/data
+
+  cassa:
+    build: ./cassa
+    ports:
+      - "5001:5001"
+    environment:
+      - BACKEND_URL=http://backend:8080
+      - DEVICE_ID=cassa
+    depends_on:
+      - backend
+
+  bar:
+    build: ./bar
+    ports:
+      - "5003:5003"
+    environment:
+      - BACKEND_URL=http://backend:8080
+      - DEVICE_ID=bar
+    depends_on:
+      - backend
+
+  vending:
+    build: ./vending
+    ports:
+      - "5002:5002"
+    environment:
+      - BACKEND_URL=http://backend:8080
+      - DEVICE_ID=vending
+    depends_on:
+      - backend
+
+volumes:
+  backend_data:
