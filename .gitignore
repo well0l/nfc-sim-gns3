@@ -1,0 +1,14 @@
+# Certificati TLS generati da mkcert (specifici per ogni macchina)
+nginx/certs/*.pem
+nginx/certs/*.key
+
+# Variabili d'ambiente locali
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Docker
+*.log

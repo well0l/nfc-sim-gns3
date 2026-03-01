@@ -5,7 +5,7 @@ services:
   backend:
     build: ./backend
     ports:
-      - "8080:8080"
+      - "8080:8080"       # HTTP interno (non esposto all'esterno in produzione)
     environment:
       - DB_PATH=./data/nfc.db
       - HMAC_SECRET=${HMAC_SECRET:-change_me_in_production}
@@ -15,7 +15,7 @@ services:
   cassa:
     build: ./cassa
     ports:
-      - "5001:5001"
+      - "5001:5001"       # HTTP interno
     environment:
       - BACKEND_URL=http://backend:8080
       - DEVICE_ID=cassa
@@ -26,7 +26,7 @@ services:
   bar:
     build: ./bar
     ports:
-      - "5003:5003"
+      - "5003:5003"       # HTTP interno
     environment:
       - BACKEND_URL=http://backend:8080
       - DEVICE_ID=bar
@@ -37,13 +37,31 @@ services:
   vending:
     build: ./vending
     ports:
-      - "5002:5002"
+      - "5002:5002"       # HTTP interno
     environment:
       - BACKEND_URL=http://backend:8080
       - DEVICE_ID=vending
       - HMAC_SECRET=${HMAC_SECRET:-change_me_in_production}
     depends_on:
       - backend
+
+  # ── Reverse proxy HTTPS (accesso esterno) ──────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8443:8443"       # backend  HTTPS
+      - "5443:5443"       # cassa    HTTPS
+      - "5444:5444"       # bar      HTTPS
+      - "5445:5445"       # vending  HTTPS
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend
+      - cassa
+      - bar
+      - vending
+    restart: unless-stopped
 
 volumes:
   backend_data:
