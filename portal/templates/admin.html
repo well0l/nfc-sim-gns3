@@ -126,8 +126,9 @@
               <td>
                 <form method="post" action="/admin/users/{{ u.id }}/permissions">
                   <div class="chips">
+                    {% set user_perms = perms_map.get(u.id, []) %}
                     {% for s in services %}
-                      {% set checked = (perms_map.get(u.id, set()) and (s.key in perms_map.get(u.id, set()))) %}
+                      {% set checked = (s.key in user_perms) %}
                       <label class="chip">
                         <input type="checkbox" name="services" value="{{ s.key }}" {% if checked %}checked{% endif %} />
                         <span>{{ s.emoji }} {{ s.label }}</span>
