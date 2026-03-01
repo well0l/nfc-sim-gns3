@@ -1,9 +1,10 @@
 from flask import Flask, request, jsonify, render_template_string
-import requests, os
+import requests, os, hmac, hashlib, time
 
 app = Flask(__name__)
-BACKEND = os.environ.get("BACKEND_URL", "http://10.10.100.10:8080")
-DEVICE_ID = os.environ.get("DEVICE_ID", "vending_unknown")
+BACKEND    = os.environ.get("BACKEND_URL",  "http://10.10.100.10:8080")
+DEVICE_ID  = os.environ.get("DEVICE_ID",   "vending_unknown")
+SECRET_KEY = os.environ.get("HMAC_SECRET", "change_me_in_production")
 
 HTML = """
 <!DOCTYPE html>
@@ -74,10 +75,14 @@ HTML = """
                 show(`✅ Acquisto completato! Carta: ${uid} — Importo: €${price}`, true);
             } else if (d.result === "denied_notfound") {
                 show(`❌ Carta non trovata: ${uid}`, false);
-            } else if (d.result === "denied_blocked") {
+            } else if (d.result === "denied_blocked" || d.result === "denied_blocked_auto") {
                 show(`❌ Carta bloccata: ${uid}`, false);
             } else if (d.result === "denied_funds") {
                 show(`❌ Saldo insufficiente: ${uid}`, false);
+            } else if (d.result === "denied_ratelimit") {
+                show(`⛔ Troppi tentativi, riprova tra poco`, false);
+            } else if (d.result === "denied_velocity") {
+                show(`⚠️ Transazione sospetta: carta usata su device multipli`, false);
             } else {
                 show(`❌ Errore: ${JSON.stringify(d)}`, false);
             }
@@ -87,19 +92,46 @@ HTML = """
 </html>
 """
 
+
+def to_cents(value):
+    return int(round(float(str(value).replace(",", ".")), 2) * 100)
+
+
+def generate_token(uid: str, amount_cents: int, device_id: str) -> dict:
+    """Genera un token HMAC-SHA256 con nonce e timestamp per una singola richiesta."""
+    ts    = int(time.time())
+    nonce = os.urandom(8).hex()
+    payload = f"{uid}:{amount_cents}:{device_id}:{ts}:{nonce}"
+    sig = hmac.new(SECRET_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return {"ts": ts, "nonce": nonce, "sig": sig}
+
+
 @app.route("/")
 def index():
     return render_template_string(HTML, device_id=DEVICE_ID)
 
+
 @app.route("/action/purchase", methods=["POST"])
 def purchase():
     data = request.json
+    uid    = data.get("uid")
+    amount = data.get("amount")
+
+    try:
+        amount_cents = to_cents(amount)
+    except (ValueError, TypeError):
+        return jsonify({"result": "error_invalid_amount"}), 400
+
+    token = generate_token(uid, amount_cents, DEVICE_ID)
+
     r = requests.post(f"{BACKEND}/api/purchase", json={
-        "card_uid": data.get("uid"),
-        "amount": data.get("amount"),
-        "device_id": DEVICE_ID
+        "card_uid":  uid,
+        "amount":    amount,
+        "device_id": DEVICE_ID,
+        "token":     token
     })
     return jsonify(r.json())
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5002, debug=True)
