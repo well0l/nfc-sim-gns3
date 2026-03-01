@@ -67,7 +67,19 @@ mkcert -install
 
 mkdir -p nginx/certs
 pushd nginx/certs > /dev/null
-mkcert localhost 127.0.0.1 ::1
+
+# Per test in locale usiamo localhost.
+# Quando andrai dal cliente puoi aggiungere l'IP LAN del server:
+#   SERVER_IP=192.168.1.50 bash setup.sh
+SERVER_IP=${SERVER_IP:-}
+
+DOMAINS=("localhost" "127.0.0.1" "::1")
+if [ -n "$SERVER_IP" ]; then
+  DOMAINS+=("$SERVER_IP")
+fi
+
+mkcert "${DOMAINS[@]}"
+
 mv localhost+2.pem     cert.pem 2>/dev/null || \
 mv localhost+1.pem     cert.pem 2>/dev/null || \
 mv localhost.pem       cert.pem 2>/dev/null || true
@@ -83,13 +95,19 @@ fi
 
 echo -e "  ✓ Certificati generati in nginx/certs/"
 
-# ── 4. Crea .env con HMAC_SECRET casuale se non esiste ───────────────────────
+# ── 4. Crea .env con secret se non esiste ───────────────────────────────────
 echo -e "${GREEN}[4/5] Configuro variabili d'ambiente...${NC}"
 
 if [ ! -f .env ]; then
     HMAC_SECRET=$(openssl rand -hex 32)
-    echo "HMAC_SECRET=${HMAC_SECRET}" > .env
-    echo -e "  ✓ File .env creato con HMAC_SECRET casuale"
+    SECRET_KEY=$(openssl rand -hex 32)
+    {
+      echo "HMAC_SECRET=${HMAC_SECRET}"
+      echo "SECRET_KEY=${SECRET_KEY}"
+      echo "# INIT_ADMIN_USER=admin"
+      echo "# INIT_ADMIN_PASSWORD=admin"
+    } > .env
+    echo -e "  ✓ File .env creato con HMAC_SECRET + SECRET_KEY casuali"
 else
     echo -e "  ✓ File .env già esistente, non sovrascritto"
 fi
@@ -105,10 +123,7 @@ fi
 
 echo -e ""
 echo -e "${BLUE}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║              Servizi disponibili                 ║${NC}"
+echo -e "${BLUE}║              Portale (entrypoint unico)          ║${NC}"
 echo -e "${BLUE}╠══════════════════════════════════════════════════╣${NC}"
-echo -e "${BLUE}║${NC}  Cassa    →  ${GREEN}https://localhost:5443${NC}           ${BLUE}║${NC}"
-echo -e "${BLUE}║${NC}  Bar      →  ${GREEN}https://localhost:5444${NC}           ${BLUE}║${NC}"
-echo -e "${BLUE}║${NC}  Vending  →  ${GREEN}https://localhost:5445${NC}           ${BLUE}║${NC}"
-echo -e "${BLUE}║${NC}  Backend  →  ${GREEN}https://localhost:8443/api/stats${NC}  ${BLUE}║${NC}"
+echo -e "${BLUE}║${NC}  Portal →  ${GREEN}https://localhost/${NC}                 ${BLUE}║${NC}"
 echo -e "${BLUE}╚══════════════════════════════════════════════════╝${NC}"

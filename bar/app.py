@@ -176,7 +176,7 @@ HTML = """
             }
 
             const euro = (cents / 100).toFixed(2);
-            const r = await fetch("/action/charge", {
+            const r = await fetch("action/charge", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({uid, amount: euro})

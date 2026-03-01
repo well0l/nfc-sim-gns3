@@ -146,9 +146,9 @@
         async function loadData() {
             try {
                 const [statsRes, cardsRes, eventsRes] = await Promise.all([
-                    fetch('/api/stats'),
-                    fetch('/api/cards/all'),
-                    fetch('/api/events')
+                    fetch('api/stats'),
+                    fetch('api/cards/all'),
+                    fetch('api/events')
                 ]);
                 const stats = await statsRes.json();
                 const cards = await cardsRes.json();
@@ -215,7 +215,7 @@
             const balance = document.getElementById('new-balance').value || 0;
             const msgEl = document.getElementById('create-msg');
             if (!uid) { msgEl.innerHTML = '<div class="msg msg-err">❌ Inserisci un UID</div>'; return; }
-            const r = await fetch('/api/cards', {
+            const r = await fetch('api/cards', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({uid, balance})
@@ -232,7 +232,7 @@
         }
 
         async function toggleStatus(uid, newStatus) {
-            const r = await fetch(`/api/cards/${uid}/status`, {
+            const r = await fetch(`api/cards/${uid}/status`, {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({status: newStatus})
@@ -244,7 +244,7 @@
 
         async function deleteCard(uid) {
             if (!confirm(`Eliminare la carta ${uid}? \nL'operazione non è reversibile.`)) return;
-            const r = await fetch(`/api/cards/${uid}`, { method: 'DELETE' });
+            const r = await fetch(`api/cards/${uid}`, { method: 'DELETE' });
             const d = await r.json();
             if (d.result === 'ok') loadData();
             else alert('Errore: ' + (d.error || 'Eliminazione fallita'));
@@ -265,7 +265,7 @@
         async function confirmTopup() {
             const amount = document.getElementById('topup-amount').value;
             if (!amount || parseFloat(amount) <= 0) { alert('Inserisci un importo valido'); return; }
-            const r = await fetch('/api/topup', {
+            const r = await fetch('api/topup', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({card_uid: topupTargetUid, amount, device_id: 'cassa'})

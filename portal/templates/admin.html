@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: #0b1220;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 20px;
+      background: rgba(15, 23, 42, 0.95);
+      position: sticky;
+      top: 0;
+    }
+    header a { color: #93c5fd; text-decoration: none; font-weight: 800; }
+    main { max-width: 1100px; margin: 0 auto; padding: 22px; }
+    .panel {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+    h2 { margin: 0 0 12px 0; }
+    label { display: block; font-weight: 800; margin: 10px 0 6px; }
+    input, select {
+      width: 100%;
+      padding: 14px 12px;
+      font-size: 16px;
+      border-radius: 12px;
+      border: 2px solid rgba(148, 163, 184, 0.35);
+      background: rgba(255,255,255,0.92);
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 12px;
+      padding: 14px 12px;
+      font-size: 16px;
+      font-weight: 900;
+      border: 0;
+      border-radius: 12px;
+      background: #16a34a;
+      color: white;
+      cursor: pointer;
+      min-height: 56px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+      vertical-align: top;
+    }
+    th { text-align: left; color: #cbd5e1; }
+    .chips { display: flex; gap: 10px; flex-wrap: wrap; }
+    .chip {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 999px;
+      padding: 8px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+    }
+    .chip input { width: 20px; height: 20px; }
+    .save { background: #2563eb; }
+    .note { color: #cbd5e1; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/">← Dashboard</a>
+    <div style="font-weight:900;">Admin utenti & permessi</div>
+    <a href="/logout">Logout</a>
+  </header>
+
+  <main>
+    <div class="panel">
+      <h2>Crea utente</h2>
+      <form method="post" action="/admin/users">
+        <label>Username</label>
+        <input name="username" />
+
+        <label>Password</label>
+        <input name="password" type="password" />
+
+        <label>Ruolo</label>
+        <select name="role">
+          <option value="operator">operator</option>
+          <option value="admin">admin</option>
+        </select>
+
+        <button type="submit">Crea</button>
+      </form>
+      <div class="note">Admin iniziale: {{ init_admin_user }} (password di default via env INIT_ADMIN_PASSWORD).</div>
+    </div>
+
+    <div class="panel">
+      <h2>Permessi servizi</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Utente</th>
+            <th>Ruolo</th>
+            <th>Servizi abilitati</th>
+            <th>Azioni</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+            <tr>
+              <td>{{ u.username }}</td>
+              <td>{{ u.role }}</td>
+              <td>
+                <form method="post" action="/admin/users/{{ u.id }}/permissions">
+                  <div class="chips">
+                    {% set user_perms = perms_map.get(u.id, []) %}
+                    {% for s in services %}
+                      {% set checked = (s.key in user_perms) %}
+                      <label class="chip">
+                        <input type="checkbox" name="services" value="{{ s.key }}" {% if checked %}checked{% endif %} />
+                        <span>{{ s.emoji }} {{ s.label }}</span>
+                      </label>
+                    {% endfor %}
+                  </div>
+              </td>
+              <td>
+                  <button class="save" type="submit">Salva</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </main>
+</body>
+</html>
