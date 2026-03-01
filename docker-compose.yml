@@ -4,8 +4,7 @@ services:
 
   backend:
     build: ./backend
-    ports:
-      - "8080:8080"       # HTTP interno (non esposto all'esterno in produzione)
+    # Non esporre porte in host: accesso solo dalla rete Docker (via Nginx/Portal)
     environment:
       - DB_PATH=./data/nfc.db
       - HMAC_SECRET=${HMAC_SECRET:-change_me_in_production}
@@ -14,8 +13,7 @@ services:
 
   cassa:
     build: ./cassa
-    ports:
-      - "5001:5001"       # HTTP interno
+    # Non esporre porte in host
     environment:
       - BACKEND_URL=http://backend:8080
       - DEVICE_ID=cassa
@@ -25,8 +23,7 @@ services:
 
   bar:
     build: ./bar
-    ports:
-      - "5003:5003"       # HTTP interno
+    # Non esporre porte in host
     environment:
       - BACKEND_URL=http://backend:8080
       - DEVICE_ID=bar
@@ -36,8 +33,7 @@ services:
 
   vending:
     build: ./vending
-    ports:
-      - "5002:5002"       # HTTP interno
+    # Non esporre porte in host
     environment:
       - BACKEND_URL=http://backend:8080
       - DEVICE_ID=vending
@@ -45,19 +41,29 @@ services:
     depends_on:
       - backend
 
-  # ── Reverse proxy HTTPS (accesso esterno) ──────────────────────────────────
+  portal:
+    build: ./portal
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-change_me_in_production}
+      - PORTAL_DB=/app/data/portal.db
+      - INIT_ADMIN_USER=${INIT_ADMIN_USER:-admin}
+      - INIT_ADMIN_PASSWORD=${INIT_ADMIN_PASSWORD:-admin}
+    volumes:
+      - portal_data:/app/data
+    depends_on:
+      - backend
+
+  # ── Reverse proxy HTTPS (entrypoint unico) ─────────────────────────────────
   nginx:
     image: nginx:alpine
     ports:
-      - "8443:8443"       # backend  HTTPS
-      - "5443:5443"       # cassa    HTTPS
-      - "5444:5444"       # bar      HTTPS
-      - "5445:5445"       # vending  HTTPS
+      - "80:80"            # HTTP → redirect a HTTPS
+      - "443:443"          # HTTPS entry point unico
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/certs:/etc/nginx/certs:ro
     depends_on:
-      - backend
+      - portal
       - cassa
       - bar
       - vending
@@ -65,3 +71,4 @@ services:
 
 volumes:
   backend_data:
+  portal_data:
