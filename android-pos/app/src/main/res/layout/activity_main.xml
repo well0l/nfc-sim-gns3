@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Bar POS (Android)"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:paddingBottom="12dp" />
+
+    <TextView
+        android:id="@+id/amountDisplay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="€0.00"
+        android:textSize="36sp"
+        android:textStyle="bold"
+        android:gravity="end"
+        android:padding="12dp" />
+
+    <GridLayout
+        android:id="@+id/keypad"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:columnCount="3"
+        android:rowCount="4"
+        android:useDefaultMargins="true">
+
+        <Button android:id="@+id/k1" android:text="1" />
+        <Button android:id="@+id/k2" android:text="2" />
+        <Button android:id="@+id/k3" android:text="3" />
+        <Button android:id="@+id/k4" android:text="4" />
+        <Button android:id="@+id/k5" android:text="5" />
+        <Button android:id="@+id/k6" android:text="6" />
+        <Button android:id="@+id/k7" android:text="7" />
+        <Button android:id="@+id/k8" android:text="8" />
+        <Button android:id="@+id/k9" android:text="9" />
+        <Button android:id="@+id/kC" android:text="C" />
+        <Button android:id="@+id/k0" android:text="0" />
+        <Button android:id="@+id/kBk" android:text="⌫" />
+
+    </GridLayout>
+
+    <Button
+        android:id="@+id/confirmButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Conferma importo e attendi NFC"
+        android:layout_marginTop="12dp" />
+
+    <Button
+        android:id="@+id/cancelButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Annulla attesa"
+        android:enabled="false"
+        android:layout_marginTop="8dp" />
+
+    <TextView
+        android:id="@+id/status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Pronto."
+        android:textSize="16sp"
+        android:paddingTop="12dp" />
+
+</LinearLayout>
