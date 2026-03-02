@@ -6,6 +6,7 @@ import android.content.Context
 import android.net.http.SslError
 import android.nfc.NfcAdapter
 import android.nfc.Tag
+import android.nfc.tech.Ndef
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -18,6 +19,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
+import java.nio.charset.Charset
 
 class PortalActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
@@ -104,7 +106,7 @@ class PortalActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
         adapter.enableReaderMode(
             this,
             this,
-            NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_NFC_B or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK,
+            NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_NFC_B,
             null
         )
     }
@@ -119,10 +121,10 @@ class PortalActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
         processing = true
         disableReader()
 
-        val uid = bytesToHex(tag.id)
+        val nfcText = readNdefText(tag)
 
         handler.post {
-            val js = "(function(){ try { if (typeof window.__onNfcUid === 'function') window.__onNfcUid('$uid'); } catch(e){} })();"
+            val js = "(function(){ try { if (typeof window.__onNfcUid === 'function') window.__onNfcUid('$nfcText'); } catch(e){} })();"
             webView.evaluateJavascript(js, null)
         }
 
@@ -130,6 +132,43 @@ class PortalActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
             processing = false
             updateNfcReaderState()
         }, 1200)
+    }
+
+    /**
+     * Legge il testo da un tag NFC NDEF.
+     * Ritorna il primo record di tipo TEXT trovato, oppure l'UUID se non presente.
+     */
+    private fun readNdefText(tag: Tag): String {
+        try {
+            val ndef = Ndef.get(tag) ?: return bytesToHex(tag.id)
+            ndef.connect()
+            
+            val ndefMessage = ndef.cachedNdefMessage ?: ndef.ndefMessage
+            ndef.close()
+            
+            if (ndefMessage == null) return bytesToHex(tag.id)
+            
+            for (record in ndefMessage.records) {
+                // TNF_WELL_KNOWN = 0x01, RTD_TEXT = "T"
+                if (record.tnf == 0x01.toByte() && record.type.contentEquals("T".toByteArray())) {
+                    val payload = record.payload
+                    if (payload.isEmpty()) continue
+                    
+                    // First byte: status byte (language code length + encoding)
+                    val languageCodeLength = (payload[0].toInt() and 0x3F)
+                    val textEncoding = if ((payload[0].toInt() and 0x80) == 0) "UTF-8" else "UTF-16"
+                    
+                    // Skip status byte + language code
+                    val textBytes = payload.copyOfRange(1 + languageCodeLength, payload.size)
+                    return String(textBytes, Charset.forName(textEncoding))
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        
+        // Fallback: ritorna UUID se non c'è testo NDEF
+        return bytesToHex(tag.id)
     }
 
     private fun injectNfcBridge() {
