@@ -6,7 +6,6 @@ import android.content.Context
 import android.net.http.SslError
 import android.nfc.NfcAdapter
 import android.nfc.Tag
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -31,7 +30,7 @@ class PortalActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
     private var processing: Boolean = false
 
     private fun prefs() = getSharedPreferences("nfc_portal", Context.MODE_PRIVATE)
-    private fun baseUrl(): String = (prefs().getString("base_url", "https://10.10.100.10/") ?: "https://10.10.100.10/").trim()
+    private fun baseUrl(): String = (prefs().getString("base_url", "") ?: "").trim()
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,11 +64,8 @@ class PortalActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
             }
 
             override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
-                if (BuildConfig.DEBUG) {
-                    handler?.proceed()
-                } else {
-                    handler?.cancel()
-                }
+                // Debug: accetta sempre certificati self-signed
+                handler?.proceed()
             }
         }
 
