@@ -15,7 +15,7 @@ HTML = """
     <style>
         body { 
             font-family: sans-serif; 
-            max-width: 400px; 
+            max-width: 420px; 
             margin: 0 auto; 
             padding: 20px; 
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -58,7 +58,7 @@ HTML = """
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 14px;
         }
         .key {
             background: #f8f9fa;
@@ -69,6 +69,7 @@ HTML = """
             cursor: pointer;
             transition: all 0.1s;
             font-weight: bold;
+            user-select: none;
         }
         .key:active {
             background: #e9ecef;
@@ -76,19 +77,11 @@ HTML = """
         }
         .key.zero { grid-column: span 2; }
         .key.clear { background: #ffc107; border-color: #ffc107; color: white; }
-        input {
-            width: 100%;
-            padding: 16px;
-            font-size: 1.1em;
-            border: 2px solid #dee2e6;
-            border-radius: 8px;
-            box-sizing: border-box;
-            margin-bottom: 12px;
-        }
+
         button {
             width: 100%;
             padding: 18px;
-            font-size: 1.2em;
+            font-size: 1.1em;
             font-weight: bold;
             background: #28a745;
             color: white;
@@ -96,10 +89,11 @@ HTML = """
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s;
+            margin-top: 10px;
         }
-        button:hover { background: #218838; }
-        button:active { transform: scale(0.98); }
-        button:disabled { background: #6c757d; cursor: not-allowed; }
+        button.secondary { background: #6c757d; }
+        button:disabled { background: #adb5bd; cursor: not-allowed; }
+
         .result {
             margin-top: 16px;
             padding: 16px;
@@ -109,16 +103,22 @@ HTML = """
         }
         .ok { background: #d4edda; color: #155724; }
         .error { background: #f8d7da; color: #721c24; }
+        .info { background: #e2e8f0; color: #0f172a; }
+
+        .disabled {
+            opacity: 0.45;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
     <div class="pos">
         <div class="device-id">📟 {{ device_id }}</div>
         <h2>🍸 Bar POS</h2>
-        
-        <div class="display" id="display">0.00</div>
-        
-        <div class="keypad">
+
+        <div class="display" id="display">€0.00</div>
+
+        <div class="keypad" id="keypad">
             <div class="key" onclick="addDigit('1')">1</div>
             <div class="key" onclick="addDigit('2')">2</div>
             <div class="key" onclick="addDigit('3')">3</div>
@@ -131,22 +131,26 @@ HTML = """
             <div class="key clear" onclick="clearDisplay()">C</div>
             <div class="key zero" onclick="addDigit('0')">0</div>
         </div>
-        
-        <input id="card_uid" placeholder="UID Carta cliente" />
-        <button onclick="charge()">💳 Addebita</button>
-        
+
+        <button id="confirmBtn" onclick="confirmAmount()">Conferma importo e attendi NFC</button>
+        <button id="cancelBtn" class="secondary" onclick="cancelWait()" disabled>Annulla attesa</button>
+
         <div id="result"></div>
     </div>
 
     <script>
-        let amount = "";
+        let amount = "";      // centesimi come stringa
+        let waiting = false;  // true quando aspettiamo NFC
+        let charging = false;
 
         function addDigit(d) {
+            if (waiting || charging) return;
             amount += d;
             updateDisplay();
         }
 
         function clearDisplay() {
+            if (waiting || charging) return;
             amount = "";
             updateDisplay();
         }
@@ -157,51 +161,88 @@ HTML = """
             document.getElementById("display").textContent = "€" + euro;
         }
 
-        function show(msg, ok) {
-            document.getElementById("result").innerHTML =
-                `<div class="result ${ok ? 'ok' : 'error'}">${msg}</div>`;
+        function show(msg, kind) {
+            const cls = kind || 'info';
+            document.getElementById("result").innerHTML = `<div class="result ${cls}">${msg}</div>`;
         }
 
-        async function charge() {
-            const uid = document.getElementById("card_uid").value.trim();
+        function setWaitingUI(on) {
+            waiting = on;
+            document.getElementById("confirmBtn").disabled = on;
+            document.getElementById("cancelBtn").disabled = !on;
+            document.getElementById("keypad").classList.toggle('disabled', on);
+        }
+
+        function confirmAmount() {
             const cents = parseInt(amount || "0");
-            
-            if (!uid) {
-                show("❌ Inserisci la carta del cliente", false);
-                return;
-            }
             if (cents === 0) {
-                show("❌ Inserisci un importo", false);
+                show("❌ Inserisci un importo", 'error');
                 return;
             }
-
+            setWaitingUI(true);
             const euro = (cents / 100).toFixed(2);
-            const r = await fetch("action/charge", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({uid, amount: euro})
-            });
-            const d = await r.json();
-            
-            if (d.result === "ok") {
-                show(`✅ Pagamento €${euro} completato!`, true);
-                amount = "";
-                updateDisplay();
-                document.getElementById("card_uid").value = "";
-            } else if (d.result === "denied_notfound") {
-                show(`❌ Carta non trovata: ${uid}`, false);
-            } else if (d.result === "denied_blocked" || d.result === "denied_blocked_auto") {
-                show(`❌ Carta bloccata: ${uid}`, false);
-            } else if (d.result === "denied_funds") {
-                show(`❌ Saldo insufficiente (richiesti €${euro})`, false);
-            } else if (d.result === "denied_ratelimit") {
-                show(`⛔ Troppi tentativi, riprova tra poco`, false);
-            } else if (d.result === "denied_velocity") {
-                show(`⚠️ Transazione sospetta: carta usata su device multipli`, false);
-            } else {
-                show(`❌ Errore: ${JSON.stringify(d)}`, false);
+            show(`📶 Avvicina la carta NFC… (importo €${euro})`, 'info');
+        }
+
+        function cancelWait() {
+            setWaitingUI(false);
+            show("Attesa annullata.", 'info');
+        }
+
+        async function doCharge(uid) {
+            if (charging) return;
+            charging = true;
+
+            const cents = parseInt(amount || "0");
+            const euro = (cents / 100).toFixed(2);
+
+            try {
+                const r = await fetch("action/charge", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({uid, amount: euro})
+                });
+                const d = await r.json();
+
+                if (d.result === "ok") {
+                    show(`✅ Pagamento €${euro} completato!`, 'ok');
+                    amount = "";
+                    updateDisplay();
+                } else if (d.result === "denied_notfound") {
+                    show(`❌ Carta non trovata: ${uid}`, 'error');
+                } else if (d.result === "denied_blocked" || d.result === "denied_blocked_auto") {
+                    show(`❌ Carta bloccata: ${uid}`, 'error');
+                } else if (d.result === "denied_funds") {
+                    show(`❌ Saldo insufficiente (richiesti €${euro})`, 'error');
+                } else if (d.result === "denied_ratelimit") {
+                    show(`⛔ Troppi tentativi, riprova tra poco`, 'error');
+                } else if (d.result === "denied_velocity") {
+                    show(`⚠️ Transazione sospetta: carta usata su device multipli`, 'error');
+                } else {
+                    show(`❌ Errore: ${JSON.stringify(d)}`, 'error');
+                }
+            } catch (e) {
+                show(`❌ Errore rete: ${e}`, 'error');
+            } finally {
+                charging = false;
+                setWaitingUI(false);
             }
         }
+
+        // Chiamata dal wrapper Android (o dal parent frame) quando legge una carta.
+        window.__onNfcUid = function(uid) {
+            if (!waiting) return;
+            doCharge(String(uid || "").trim());
+        }
+
+        // Fallback: se arriva via postMessage dal parent.
+        window.addEventListener('message', (ev) => {
+            try {
+                if (ev && ev.data && ev.data.type === 'nfc_uid') {
+                    window.__onNfcUid(ev.data.uid);
+                }
+            } catch (e) {}
+        });
 
         updateDisplay();
     </script>

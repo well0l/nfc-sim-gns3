@@ -1,18 +1,17 @@
-# Android NFC POS (solo NFC)
+# Android NFC Portal (WebView) + NFC su Bar
 
-Questa cartella contiene un'app Android (Kotlin) che simula il POS del bar:
-- inserisci l'importo (come centesimi tramite tastierino)
-- premi "Conferma" e l'app entra in modalità **attesa NFC**
-- al tap della carta legge l'UID e chiama il backend `/api/purchase`
+Questa app Android apre il **portal** del progetto dentro una WebView (quindi la dashboard resta identica) e abilita la lettura NFC quando sei nel servizio **Bar** (`/service/bar` oppure `/bar/`).
+
+## Cosa fa
+- Apre `https://<IP_DEL_PC>/` (porta 443 del reverse proxy Nginx)
+- Mantiene login/cookie come nel browser
+- Quando sei nel Bar, al tap NFC legge l'UID e lo inoltra alla pagina (che può usarlo per avviare il pagamento)
+
+## Debug
+- Long-press sulla pagina: imposti la Base URL
+- In build debug la WebView accetta certificati self-signed (solo per sviluppo)
 
 ## Requisiti
-- Android Studio (consigliato)
+- Android Studio
 - Telefono con NFC
-- Backend in esecuzione (container `backend` del progetto)
-
-## Config
-Nell'app puoi impostare:
-- Base URL backend (default: `http://10.10.100.10:8080`)
-- HMAC secret (default: `change_me_in_production`)
-
-Apri l'app, fai long-press sul titolo per aprire la schermata di configurazione.
+- Stack Docker avviato sul PC (nginx su 443)
