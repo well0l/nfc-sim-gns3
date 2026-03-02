@@ -150,7 +150,7 @@ class PortalActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
             
             for (record in ndefMessage.records) {
                 // TNF_WELL_KNOWN = 0x01, RTD_TEXT = "T"
-                if (record.tnf == 0x01.toByte() && record.type.contentEquals("T".toByteArray())) {
+                if (record.tnf.toInt() == 0x01 && record.type.contentEquals("T".toByteArray())) {
                     val payload = record.payload
                     if (payload.isEmpty()) continue
                     
