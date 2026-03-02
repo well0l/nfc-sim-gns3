@@ -7,9 +7,11 @@ import android.nfc.Tag
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.View
+import android.text.InputType
 import android.widget.Button
+import android.widget.EditText
 import android.widget.GridLayout
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import okhttp3.MediaType.Companion.toMediaType
@@ -35,10 +37,12 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
     private var amountDigits: String = "" // centesimi come stringa di cifre
     private var waitingNfc: Boolean = false
+    private var processing: Boolean = false
 
     private var nfcAdapter: NfcAdapter? = null
 
     private val handler = Handler(Looper.getMainLooper())
+    private var timeoutRunnable: Runnable? = null
 
     private fun prefs() = getSharedPreferences("nfc_pos", Context.MODE_PRIVATE)
 
@@ -63,6 +67,15 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
         updateDisplay()
 
         confirmButton.setOnClickListener {
+            if (nfcAdapter == null) {
+                setStatus("NFC non disponibile su questo device.")
+                return@setOnClickListener
+            }
+            if (nfcAdapter?.isEnabled != true) {
+                setStatus("Attiva NFC nelle impostazioni.")
+                return@setOnClickListener
+            }
+
             val cents = amountCents()
             if (cents <= 0) {
                 setStatus("Inserisci un importo.")
@@ -88,7 +101,7 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
     override fun onResume() {
         super.onResume()
-        if (waitingNfc) enableReader()
+        if (waitingNfc && !processing) enableReader()
     }
 
     override fun onPause() {
@@ -152,21 +165,41 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
     private fun enterWaitingMode() {
         waitingNfc = true
-        keypad.isEnabled = false
+        processing = false
         setKeypadEnabled(false)
         confirmButton.isEnabled = false
         cancelButton.isEnabled = true
         setStatus("Avvicina la carta NFC… (importo €${amountEuroString()})")
+
         enableReader()
+        startTimeout()
     }
 
     private fun exitWaitingMode(msg: String) {
         waitingNfc = false
+        processing = false
+        stopTimeout()
         disableReader()
         setKeypadEnabled(true)
         confirmButton.isEnabled = true
         cancelButton.isEnabled = false
         setStatus(msg)
+    }
+
+    private fun startTimeout() {
+        stopTimeout()
+        val r = Runnable {
+            if (waitingNfc && !processing) {
+                exitWaitingMode("Tempo scaduto: riprova.")
+            }
+        }
+        timeoutRunnable = r
+        handler.postDelayed(r, 30_000)
+    }
+
+    private fun stopTimeout() {
+        timeoutRunnable?.let { handler.removeCallbacks(it) }
+        timeoutRunnable = null
     }
 
     private fun setKeypadEnabled(enabled: Boolean) {
@@ -177,6 +210,7 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
     private fun enableReader() {
         val adapter = nfcAdapter ?: return
+        if (!adapter.isEnabled) return
         adapter.enableReaderMode(
             this,
             this,
@@ -191,18 +225,19 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
 
     override fun onTagDiscovered(tag: Tag) {
         if (!waitingNfc) return
-        val uid = bytesToHex(tag.id)
+        if (processing) return
+        processing = true
+        stopTimeout()
+        disableReader()
 
-        handler.post {
-            setStatus("Carta letta: $uid — invio transazione…")
-        }
+        val uid = bytesToHex(tag.id)
+        handler.post { setStatus("Carta letta: $uid — invio transazione…") }
 
         Thread {
             val result = doPurchase(uid)
             handler.post {
                 when (result) {
                     "ok" -> {
-                        setStatus("OK: pagamento €${amountEuroString()} completato.")
                         amountDigits = ""
                         updateDisplay()
                         exitWaitingMode("OK: pagamento completato. Pronto.")
@@ -221,12 +256,12 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
     }
 
     private fun doPurchase(cardUid: String): String {
-        val amountCents = amountCents()
+        val cents = amountCents()
         val ts = (System.currentTimeMillis() / 1000).toInt()
         val nonce = randomHex(8)
-        val deviceId = deviceId()
+        val dev = deviceId()
 
-        val payload = "$cardUid:$amountCents:$deviceId:$ts:$nonce"
+        val payload = "$cardUid:$cents:$dev:$ts:$nonce"
         val sig = hmacSha256Hex(hmacSecret(), payload)
 
         val token = JSONObject()
@@ -237,7 +272,7 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
         val body = JSONObject()
             .put("card_uid", cardUid)
             .put("amount", amountEuroString())
-            .put("device_id", deviceId)
+            .put("device_id", dev)
             .put("token", token)
 
         val req = Request.Builder()
@@ -249,23 +284,52 @@ class MainActivity : AppCompatActivity(), NfcAdapter.ReaderCallback {
             val raw = resp.body?.string() ?: "{}"
             return try {
                 JSONObject(raw).optString("result", "error")
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 "error_parse"
             }
         }
     }
 
     private fun showConfigDialog() {
-        val view = layoutInflater.inflate(android.R.layout.simple_list_item_2, null)
-        val t1 = view.findViewById<TextView>(android.R.id.text1)
-        val t2 = view.findViewById<TextView>(android.R.id.text2)
-        t1.text = "Base URL: ${backendBaseUrl()}"
-        t2.text = "Device ID: ${deviceId()} (tap per modificare)"
+        val p = prefs()
+
+        val base = EditText(this).apply {
+            hint = "Base URL backend"
+            setText(backendBaseUrl())
+            inputType = InputType.TYPE_CLASS_TEXT
+        }
+        val dev = EditText(this).apply {
+            hint = "Device ID"
+            setText(deviceId())
+            inputType = InputType.TYPE_CLASS_TEXT
+        }
+        val secret = EditText(this).apply {
+            hint = "HMAC secret"
+            setText(hmacSecret())
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+
+        val wrap = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val pad = (16 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad, pad, pad)
+            addView(base)
+            addView(dev)
+            addView(secret)
+        }
 
         AlertDialog.Builder(this)
             .setTitle("Config")
-            .setMessage("Per ora la config è via SharedPreferences. Dimmi i valori e li settiamo anche con una UI completa.")
-            .setPositiveButton("OK", null)
+            .setView(wrap)
+            .setNegativeButton("Annulla", null)
+            .setPositiveButton("Salva") { _, _ ->
+                p.edit()
+                    .putString("base_url", base.text.toString().trim())
+                    .putString("device_id", dev.text.toString().trim())
+                    .putString("hmac_secret", secret.text.toString())
+                    .apply()
+                setStatus("Config salvata.")
+            }
             .show()
     }
 
