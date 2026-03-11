@@ -64,7 +64,7 @@ HTML = """
                 show("❌ Inserisci l'UID della carta", false);
                 return;
             }
-            const r = await fetch("/action/purchase", {
+            const r = await fetch("action/purchase", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({uid, amount: price})

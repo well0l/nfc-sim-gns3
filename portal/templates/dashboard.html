@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: #0b1220;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 20px;
+      background: rgba(15, 23, 42, 0.95);
+      position: sticky;
+      top: 0;
+    }
+    .brand {
+      font-weight: 900;
+      font-size: 18px;
+    }
+    .user {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      font-weight: 700;
+    }
+    .user a {
+      color: #93c5fd;
+      text-decoration: none;
+    }
+    main {
+      padding: 22px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .tile {
+      background: rgba(255,255,255,0.06);
+      border: 2px solid rgba(148, 163, 184, 0.25);
+      border-radius: 18px;
+      padding: 22px;
+      min-height: 160px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .tile .title {
+      font-size: 22px;
+      font-weight: 900;
+      color: white;
+    }
+    .tile .emoji {
+      font-size: 44px;
+      margin-bottom: 8px;
+    }
+    .tile a {
+      display: inline-block;
+      text-decoration: none;
+      text-align: center;
+      background: #2563eb;
+      color: white;
+      padding: 16px 14px;
+      border-radius: 14px;
+      font-size: 18px;
+      font-weight: 900;
+      min-height: 64px;
+      line-height: 32px;
+    }
+    .empty {
+      background: rgba(255,255,255,0.06);
+      border: 2px dashed rgba(148, 163, 184, 0.35);
+      border-radius: 18px;
+      padding: 18px;
+      color: #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">🏪 NFC Portal</div>
+    <div class="user">
+      <span>{{ user.username }} ({{ user.role }})</span>
+      {% if user.role == 'admin' %}
+        <a href="/admin">Admin</a>
+      {% endif %}
+      <a href="/logout">Logout</a>
+    </div>
+  </header>
+
+  <main>
+    {% if services|length == 0 %}
+      <div class="empty">
+        Nessun servizio abilitato per il tuo utente.
+      </div>
+    {% endif %}
+
+    <div class="grid">
+      {% for s in services %}
+        <div class="tile">
+          <div>
+            <div class="emoji">{{ s.emoji }}</div>
+            <div class="title">{{ s.label }}</div>
+          </div>
+          <a href="/service/{{ s.key }}">Apri</a>
+        </div>
+      {% endfor %}
+    </div>
+  </main>
+</body>
+</html>
